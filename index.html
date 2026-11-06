@@ -283,6 +283,9 @@
 </head>
 <body>
 
+<!-- Player YouTube nascosto -->
+<div id="youtube-player" style="display: none;"></div>
+
 <div class="envelope-scene" id="scene">
   <div class="envelope" id="envelope">
     <div class="env-body">
@@ -308,15 +311,16 @@
 
 <script>
   /* ────────────────────────────────────────────
-     ORDINE DELLE FOTO
+     CONFIGURAZIONE
   ──────────────────────────────────────────── */
+  const YOUTUBE_ID = 'jYcaxxbiwUo'; // ID del video (dal tuo link)
+
   const PHOTOS = [
     'photo1.jpg','photo2.jpg','photo3.jpg','photo4.jpg',
     'photo5.jpg','photo6.jpg','photo7.jpg','photo8.jpg',
     'photo9.jpg','photo10.jpg','photo12.jpg','photo11.jpg'
   ];
 
-  /* posizioni (x%, y%) + rotazione (°) per 12 foto */
   const POSITIONS = [
     { x: 16, y: 14, r:  -9 }, { x: 45, y: 11, r:   5 }, { x: 78, y: 15, r:  -6 },
     { x: 10, y: 34, r:   7 }, { x: 38, y: 32, r: -11 }, { x: 68, y: 34, r:   6 }, { x: 90, y: 36, r:  -5 },
@@ -324,11 +328,12 @@
     { x: 32, y: 76, r:   6 }, { x: 68, y: 78, r:  -5 }
   ];
 
-  /* tipi di puntina e colori */
   const PIN_TYPES  = ['circle', 'heart', 'star', 'flower'];
   const PIN_COLORS = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71', '#9b59b6', '#e67e22'];
 
-  /* genera SVG della puntina */
+  /* ────────────────────────────────────────────
+     GENERATORE PUNTINE
+  ──────────────────────────────────────────── */
   function pinSVG(type, color) {
     const needle = `
       <line x1="15" y1="22" x2="15" y2="40" stroke="#7a7a7a" stroke-width="1.7" stroke-linecap="round"/>
@@ -361,40 +366,93 @@
     return `<svg class="pin" viewBox="0 0 30 44" xmlns="http://www.w3.org/2000/svg">${needle}${head}</svg>`;
   }
 
+  /* ────────────────────────────────────────────
+     STATO E RIFERIMENTI DOM
+  ──────────────────────────────────────────── */
   const envelope = document.getElementById('envelope');
   const letter   = document.getElementById('letter');
   const scene    = document.getElementById('scene');
   const tip      = document.getElementById('tip');
   const hearts   = document.getElementById('hearts');
   const title    = document.getElementById('title');
-  const audio    = new Audio('canzone.mp3');
 
-  let state = 0;
+  let state = 0; // 0 = chiuso, 1 = lettera aperta, 2 = foto
+  let player = null;
 
+  /* ────────────────────────────────────────────
+     YOUTUBE API
+  ──────────────────────────────────────────── */
+  function onYouTubeIframeAPIReady() {
+    player = new YT.Player('youtube-player', {
+      height: '0',
+      width: '0',
+      videoId: YOUTUBE_ID,
+      playerVars: {
+        'autoplay': 0,
+        'controls': 0,
+        'loop': 1,
+        'playlist': YOUTUBE_ID,
+        'playsinline': 1
+      },
+      events: {
+        'onReady': () => console.log('YouTube Player pronto'),
+        'onError': (e) => console.error('Errore YouTube:', e.data)
+      }
+    });
+  }
+
+  // Carica l'API di YouTube
+  const tag = document.createElement('script');
+  tag.src = "https://www.youtube.com/iframe_api";
+  const firstScriptTag = document.getElementsByTagName('script')[0];
+  firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+  /* ────────────────────────────────────────────
+     GESTIONE CLICK BUSTA
+  ──────────────────────────────────────────── */
   envelope.addEventListener('click', () => {
     if (state !== 0) return;
     state = 1;
     envelope.classList.add('open');
-    audio.play().catch(()=>{});
+    
+    // Prova a far partire la musica
+    if (player && player.playVideo) {
+      player.playVideo();
+    } else {
+      // Se il player non è ancora pronto, riprova tra 1 secondo
+      setTimeout(() => {
+        if (player && player.playVideo) player.playVideo();
+      }, 1000);
+    }
+
     startHearts();
     tip.textContent = '';
+    
     setTimeout(() => {
       letter.classList.add('show');
       tip.textContent = 'tocca il bigliettino';
     }, 700);
   });
 
+  /* ────────────────────────────────────────────
+     GESTIONE CLICK BIGLIETTINO
+  ──────────────────────────────────────────── */
   letter.addEventListener('click', () => {
     if (state !== 1) return;
     state = 2;
     letter.classList.add('fly');
     scene.classList.add('hide');
     tip.textContent = '';
+    
     setTimeout(spawnPhotos, 700);
-    /* titolo dopo che tutte le foto sono comparse */
+    
+    // Titolo finale dopo che tutte le foto sono comparse
     setTimeout(() => title.classList.add('show'), 700 + PHOTOS.length * 280 + 900);
   });
 
+  /* ────────────────────────────────────────────
+     CREAZIONE FOTO CON PUNTINE
+  ──────────────────────────────────────────── */
   function spawnPhotos() {
     PHOTOS.forEach((src, i) => {
       const pos = POSITIONS[i] || { x: 50, y: 50, r: 0 };
@@ -423,13 +481,17 @@
     });
   }
 
-  /* ===== LIGHTBOX ===== */
+  /* ────────────────────────────────────────────
+     LIGHTBOX
+  ──────────────────────────────────────────── */
   function openLightbox(src) {
     const lb = document.createElement('div');
     lb.className = 'lightbox';
     lb.innerHTML = `<div class="lb-frame"><img src="${src}" alt=""></div>`;
     document.body.appendChild(lb);
+    
     requestAnimationFrame(() => lb.classList.add('visible'));
+    
     lb.addEventListener('click', (e) => {
       e.stopPropagation();
       lb.classList.remove('visible');
@@ -437,6 +499,9 @@
     });
   }
 
+  /* ────────────────────────────────────────────
+     CUORI FLUTTUANTI
+  ──────────────────────────────────────────── */
   function startHearts() {
     setInterval(() => {
       const h = document.createElement('div');
