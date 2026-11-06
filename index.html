@@ -283,8 +283,8 @@
 </head>
 <body>
 
-<!-- Player YouTube nascosto -->
-<div id="youtube-player" style="display: none;"></div>
+<!-- Player YouTube NASCOSTO (1px per 1px) -->
+<div id="youtube-player" style="position: fixed; top: -10px; left: -10px; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; z-index: -1;"></div>
 
 <div class="envelope-scene" id="scene">
   <div class="envelope" id="envelope">
@@ -313,7 +313,7 @@
   /* ────────────────────────────────────────────
      CONFIGURAZIONE
   ──────────────────────────────────────────── */
-  const YOUTUBE_ID = 'jYcaxxbiwUo'; // ID del video (dal tuo link)
+  const YOUTUBE_ID = 'jYcaxxbiwUo';
 
   const PHOTOS = [
     'photo1.jpg','photo2.jpg','photo3.jpg','photo4.jpg',
@@ -376,50 +376,45 @@
   const hearts   = document.getElementById('hearts');
   const title    = document.getElementById('title');
 
-  let state = 0; // 0 = chiuso, 1 = lettera aperta, 2 = foto
+  let state = 0;
   let player = null;
 
   /* ────────────────────────────────────────────
-     YOUTUBE API
+     YOUTUBE API (Nascosta)
   ──────────────────────────────────────────── */
   function onYouTubeIframeAPIReady() {
     player = new YT.Player('youtube-player', {
-      height: '0',
-      width: '0',
+      height: '1',
+      width: '1',
       videoId: YOUTUBE_ID,
       playerVars: {
         'autoplay': 0,
         'controls': 0,
         'loop': 1,
         'playlist': YOUTUBE_ID,
-        'playsinline': 1
-      },
-      events: {
-        'onReady': () => console.log('YouTube Player pronto'),
-        'onError': (e) => console.error('Errore YouTube:', e.data)
+        'playsinline': 1,
+        'origin': window.location.origin
       }
     });
   }
 
-  // Carica l'API di YouTube
   const tag = document.createElement('script');
   tag.src = "https://www.youtube.com/iframe_api";
   const firstScriptTag = document.getElementsByTagName('script')[0];
   firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
   /* ────────────────────────────────────────────
-     GESTIONE CLICK BUSTA
+     CLICK BUSTA
   ──────────────────────────────────────────── */
   envelope.addEventListener('click', () => {
     if (state !== 0) return;
     state = 1;
     envelope.classList.add('open');
     
-    // Prova a far partire la musica
+    // Tenta di far partire la musica invisibile
     if (player && player.playVideo) {
       player.playVideo();
     } else {
-      // Se il player non è ancora pronto, riprova tra 1 secondo
       setTimeout(() => {
         if (player && player.playVideo) player.playVideo();
       }, 1000);
@@ -435,7 +430,7 @@
   });
 
   /* ────────────────────────────────────────────
-     GESTIONE CLICK BIGLIETTINO
+     CLICK BIGLIETTINO
   ──────────────────────────────────────────── */
   letter.addEventListener('click', () => {
     if (state !== 1) return;
@@ -445,13 +440,11 @@
     tip.textContent = '';
     
     setTimeout(spawnPhotos, 700);
-    
-    // Titolo finale dopo che tutte le foto sono comparse
     setTimeout(() => title.classList.add('show'), 700 + PHOTOS.length * 280 + 900);
   });
 
   /* ────────────────────────────────────────────
-     CREAZIONE FOTO CON PUNTINE
+     CREAZIONE FOTO
   ──────────────────────────────────────────── */
   function spawnPhotos() {
     PHOTOS.forEach((src, i) => {
@@ -500,7 +493,7 @@
   }
 
   /* ────────────────────────────────────────────
-     CUORI FLUTTUANTI
+     CUORI
   ──────────────────────────────────────────── */
   function startHearts() {
     setInterval(() => {
