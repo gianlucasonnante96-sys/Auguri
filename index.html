@@ -89,7 +89,7 @@
   }
   .envelope.open .env-flap { transform: rotateX(180deg); z-index: 1; }
 
-  /* ===== SIGILLO (PULSANTE PLAY) ===== */
+  /* ===== SIGILLO (CUORE) ===== */
   .env-seal {
     position: absolute; top: 88px; left: 50%;
     transform: translateX(-50%);
@@ -101,7 +101,6 @@
     z-index: 5;
     transition: opacity .5s, transform .5s;
     cursor: pointer;
-    /* Animazione di "invito" al click */
     animation: pulseSeal 1.8s ease-in-out infinite;
   }
   @keyframes pulseSeal {
@@ -112,9 +111,10 @@
     opacity: 0; 
     transform: translateX(-50%) scale(.4) rotate(45deg); 
     animation: none;
+    pointer-events: none;
   }
 
-  /* Scritta di aiuto sotto la busta */
+  /* Scritta sotto la busta */
   .tap-hint {
     position: absolute;
     bottom: -50px; left: 50%;
@@ -127,13 +127,14 @@
     white-space: nowrap;
     pointer-events: none;
     animation: pulseHint 2s infinite;
-    transition: opacity .5s;
+    transition: opacity .3s;
   }
   @keyframes pulseHint {
     0%, 100% { opacity: 0.4; }
     50%      { opacity: 1; }
   }
-  .envelope.open .tap-hint { opacity: 0; }
+  /* La scritta sparisce non appena si apre */
+  .envelope.open .tap-hint { opacity: 0 !important; }
 
   /* ===== BIGLIETTINO ===== */
   .letter {
@@ -273,8 +274,8 @@
 </head>
 <body>
 
-<!-- Player YouTube NASCOSTO (1px per 1px) -->
-<div id="youtube-player" style="position: fixed; top: -10px; left: -10px; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; z-index: -1;"></div>
+<!-- Audio nascosto -->
+<audio id="bg-music" src="canzone.mp3" preload="auto" loop></audio>
 
 <div class="envelope-scene" id="scene">
   <div class="envelope" id="envelope">
@@ -283,9 +284,9 @@
       <div class="env-address">per Alice</div>
     </div>
     <div class="env-flap"></div>
-    <!-- Il sigillo a forma di cuore che funge da Pulsante Play -->
+    <!-- Il cuore (sigillo) -->
     <div class="env-seal" id="seal">❤</div>
-    <!-- Scritta che invita a cliccare -->
+    <!-- Scritta lampeggiante -->
     <div class="tap-hint" id="tapHint">Tocca il cuore per aprire</div>
   </div>
 </div>
@@ -306,8 +307,6 @@
   /* ────────────────────────────────────────────
      CONFIGURAZIONE
   ──────────────────────────────────────────── */
-  const YOUTUBE_ID = 'jYcaxxbiwUo';
-
   const PHOTOS = [
     'photo1.jpg','photo2.jpg','photo3.jpg','photo4.jpg',
     'photo5.jpg','photo6.jpg','photo7.jpg','photo8.jpg',
@@ -364,49 +363,26 @@
   const tip      = document.getElementById('tip');
   const hearts   = document.getElementById('hearts');
   const title    = document.getElementById('title');
+  const audio    = document.getElementById('bg-music');
 
   let state = 0;
-  let player = null;
 
   /* ────────────────────────────────────────────
-     YOUTUBE API (Nascosta)
-  ──────────────────────────────────────────── */
-  function onYouTubeIframeAPIReady() {
-    player = new YT.Player('youtube-player', {
-      height: '1',
-      width: '1',
-      videoId: YOUTUBE_ID,
-      playerVars: {
-        'autoplay': 0,
-        'controls': 0,
-        'loop': 1,
-        'playlist': YOUTUBE_ID,
-        'playsinline': 1,
-        'origin': window.location.origin
-      }
-    });
-  }
-
-  const tag = document.createElement('script');
-  tag.src = "https://www.youtube.com/iframe_api";
-  const firstScriptTag = document.getElementsByTagName('script')[0];
-  firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-
-  /* ────────────────────────────────────────────
-     CLICK SUL CUORE (O SULLA BUSTA)
+     CLICK BUSTA (E CUORE)
   ──────────────────────────────────────────── */
   function openEnvelope() {
     if (state !== 0) return;
     state = 1;
     envelope.classList.add('open');
     
-    // Tenta di far partire la musica invisibile (ora funziona su iOS)
-    if (player && player.playVideo) {
-      player.playVideo();
-    } else {
-      setTimeout(() => {
-        if (player && player.playVideo) player.playVideo();
-      }, 1000);
+    // Riproduzione audio locale (funziona su iOS)
+    if (audio) {
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.warn('Autoplay bloccato:', error);
+        });
+      }
     }
 
     startHearts();
@@ -418,15 +394,8 @@
     }, 700);
   }
 
-  // Rende cliccabile sia il cuore che tutta la busta (per comodità)
-  document.getElementById('seal').addEventListener('click', (e) => {
-    e.stopPropagation();
-    openEnvelope();
-  });
-  envelope.addEventListener('click', (e) => {
-    if (e.target.id === 'seal') return; // evita doppio trigger
-    openEnvelope();
-  });
+  // L'intera busta è cliccabile, incluso il cuore
+  envelope.addEventListener('click', openEnvelope);
 
   /* ────────────────────────────────────────────
      CLICK BIGLIETTINO
